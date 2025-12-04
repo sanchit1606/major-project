@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: pytigre
+Version: 2.2.0
+Author: Ander Biguri, Reuben Lindroos, Sam Loescher
+License: BSD 3-Clause
+License-File: LICENSE
+Requires-Dist: Cython
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: tqdm
+Dynamic: author
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist

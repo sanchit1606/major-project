@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Major Project CT Scan Reconstruction</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fas fa-brain"></i> Major Project</h1>
+            <p>CT-Former: Reconstructing 3D CT Scans from Single X-Rays with Transformer-Enhanced NeRF and MLG Ray Sampling</p>
+            <div class="gpu-info">
+                <i class="fas fa-microchip"></i> Using GPU 1: NVIDIA GeForce RTX 3050 Laptop GPU
+            </div>
+        </header>
+
+        <!-- System Information -->
+        <div class="system-info" id="systemInfo">
+            <div class="info-card">
+                <i class="fas fa-microchip"></i>
+                <h3>CPU</h3>
+                <p id="cpuInfo">Loading...</p>
+            </div>
+            <div class="info-card">
+                <i class="fas fa-memory"></i>
+                <h3>Memory</h3>
+                <p id="memoryInfo">Loading...</p>
+            </div>
+            <div class="info-card">
+                <i class="fas fa-hdd"></i>
+                <h3>Storage</h3>
+                <p id="storageInfo">Loading...</p>
+            </div>
+            <div class="info-card">
+                <i class="fas fa-tv"></i>
+                <h3>GPU</h3>
+                <p id="gpuInfo">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <h2>Configuration</h2>
+                
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select class="form-control" id="category">
+                        <option value="">Select Category</option>
+                    </select>
+                    <small id="categoryInfo">Loading available categories...</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="viewOutputType">View Output Type</label>
+                    <select class="form-control" id="viewOutputType">
+                        <option value="static">Static Images Only</option>
+                        <option value="gif">GIF Animations Only</option>
+                    </select>
+                </div>
+                
+                <div class="info-note">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Outputs are saved to category-specific folders (e.g., chest/, foot/, etc.)
+                </div>
+                
+                <div class="data-availability" id="dataAvailability" style="display: none;">
+                    <h4><i class="fas fa-database"></i> Data Availability</h4>
+                    <div id="dataInfo">Loading data information...</div>
+                </div>
+            </div>
+
+            <!-- Actions Panel -->
+            <div class="actions-panel">
+                <h2>Actions</h2>
+                
+                <button class="btn btn-secondary" id="run3DStatic" onclick="run3DStatic()" style="margin-bottom: 12px;">
+                    <i class="fas fa-cube"></i> Run Static Reconstruction (PNG)
+                </button>
+
+                <button class="btn btn-secondary" id="run3DGif" onclick="run3DGif()">
+                    <i class="fas fa-film"></i> Run Dynamic Reconstruction (GIF)
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="status-panel">
+            <h2>Progress & Status</h2>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="status-text" id="statusText">Ready to start operations</div>
+        </div>
+
+        <!-- Output Viewer Panel -->
+        <div class="output-panel" id="outputPanel" style="display: none;">
+            <h2><i class="fas fa-eye"></i> Output Viewer</h2>
+            <div class="output-controls">
+                <button class="btn btn-sm btn-outline" onclick="refreshOutputs()" title="Refresh output files">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="openOutputFolder()" title="Open output folder">
+                    <i class="fas fa-folder-open"></i> Open Folder
+                </button>
+            </div>
+            <div class="output-files" id="outputFiles">
+                <div class="no-outputs">No outputs available. Run a visualization first.</div>
+            </div>
+        </div>
+
+        <!-- Console Output (hidden, logic kept for now) -->
+        <div class="console-panel" style="display: none;">
+            <div class="console-header">
+                <h2><i class="fas fa-terminal"></i> Real-Time CLI Output</h2>
+                <button class="btn btn-sm btn-outline" onclick="clearCLIOutput()" title="Clear console output">
+                    <i class="fas fa-trash"></i> Clear
+                </button>
+            </div>
+            
+            <div class="console-output" id="consoleOutput">
+                <div class="log-entry log-system">
+                    <span class="log-timestamp">[System]</span>
+                    <span class="log-message log-system">Major Project Web GUI initialized successfully!</span>
+                </div>
+                <div class="log-entry log-system">
+                    <span class="log-timestamp">[System]</span>
+                    <span class="log-message log-system">Real-time CLI output streaming enabled...</span>
+                </div>
+                <div class="log-entry log-system">
+                    <span class="log-timestamp">[System]</span>
+                    <span class="log-message log-system">GPU 1 (NVIDIA RTX 3050) will be used for all operations</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authors/Developers Section -->
+        <div class="authors-section">
+            <h2 class="authors-title"><i class="fas fa-users"></i> Authors & Developers</h2>
+            <div class="authors-grid">
+                <div class="author-card author-card-featured">
+                    <div class="author-photo">
+                        <img src="https://ui-avatars.com/api/?name=Vidya+Gaikwad&size=150&background=6366f1&color=fff" alt="Dr. Vidya Gaikwad">
+                    </div>
+                    <div class="author-info">
+                        <h3 class="author-name">Dr. Vidya Gaikwad</h3>
+                        <p class="author-contribution">Project Supervisor & Research Guide</p>
+                        <div class="author-socials">
+                            <a href="#" class="social-link-text">LinkedIn</a>
+                            <span class="social-separator">|</span>
+                            <a href="#" class="social-link-text">GitHub</a>
+                            <span class="social-separator">|</span>
+                            <a href="mailto:vidya.gaikwad@vit.edu" class="social-link-text">Email</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="author-card">
+                    <div class="author-photo">
+                        <img src="{{ url_for('static', filename='PHOTO_SANCHIT.jpeg') }}" alt="Sanchitsai Nipanikar">
+                    </div>
+                    <div class="author-info">
+                        <h3 class="author-name">Sanchitsai Nipanikar</h3>
+                        <p class="author-contribution">Implemented the Line-Segment Transformer architecture and MLG ray sampling strategy for efficient 3D reconstruction.</p>
+                        <div class="author-socials">
+                            <a href="https://www.linkedin.com/in/sanchit1606/" target="_blank" rel="noopener noreferrer" class="social-link-text">LinkedIn</a>
+                            <span class="social-separator">|</span>
+                            <a href="https://github.com/sanchit1606" target="_blank" rel="noopener noreferrer" class="social-link-text">GitHub</a>
+                            <span class="social-separator">|</span>
+                            <a href="https://portfolio-three-silk-62.vercel.app/" target="_blank" rel="noopener noreferrer" class="social-link-text">Portfolio</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="author-card">
+                    <div class="author-photo">
+                        <img src="https://ui-avatars.com/api/?name=Shreyas+Nagarkar&size=150&background=10b981&color=fff" alt="Shreyas Nagarkar">
+                    </div>
+                    <div class="author-info">
+                        <h3 class="author-name">Shreyas Nagarkar</h3>
+                        <p class="author-contribution">Developed the NeRF-based implicit radiodensity field and latent code optimization for patient-specific adaptation.</p>
+                        <div class="author-socials">
+                            <a href="#" class="social-link-text">LinkedIn</a>
+                            <span class="social-separator">|</span>
+                            <a href="#" class="social-link-text">GitHub</a>
+                            <span class="social-separator">|</span>
+                            <a href="mailto:shreyas.nagarkar222@vit.edu" class="social-link-text">Email</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="author-card">
+                    <div class="author-photo">
+                        <img src="https://ui-avatars.com/api/?name=Shivam+Padalkar&size=150&background=f59e0b&color=fff" alt="Shivam Padalkar">
+                    </div>
+                    <div class="author-info">
+                        <h3 class="author-name">Shivam Padalkar</h3>
+                        <p class="author-contribution">Designed and implemented the adversarial training framework and 3D visualization pipeline for medical imaging.</p>
+                        <div class="author-socials">
+                            <a href="#" class="social-link-text">LinkedIn</a>
+                            <span class="social-separator">|</span>
+                            <a href="#" class="social-link-text">GitHub</a>
+                            <span class="social-separator">|</span>
+                            <a href="mailto:shivam.padalkar22@vit.edu" class="social-link-text">Email</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="author-card">
+                    <div class="author-photo">
+                        <img src="https://ui-avatars.com/api/?name=Muhammad+Parkar&size=150&background=ef4444&color=fff" alt="Muhammad Parkar">
+                    </div>
+                    <div class="author-info">
+                        <h3 class="author-name">Muhammad Parkar</h3>
+                        <p class="author-contribution">Built the web GUI interface, integrated real-time monitoring, and optimized GPU utilization for training and inference.</p>
+                        <div class="author-socials">
+                            <a href="#" class="social-link-text">LinkedIn</a>
+                            <span class="social-separator">|</span>
+                            <a href="#" class="social-link-text">GitHub</a>
+                            <span class="social-separator">|</span>
+                            <a href="mailto:muhammad.parkar22@vit.edu" class="social-link-text">Email</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Action Button -->
+        <div class="fab" onclick="scrollToTop()">
+            <i class="fas fa-arrow-up"></i>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

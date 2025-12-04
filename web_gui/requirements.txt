@@ -1,0 +1,9 @@
+Flask==2.3.3
+torch
+numpy
+matplotlib
+scikit-image
+tqdm
+Pillow
+imageio
+psutil
