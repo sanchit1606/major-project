@@ -1,0 +1,88 @@
+# Personal photos - do not upload
+PHOTO_SANCHIT.jpeg
+*.jpeg
+*.jpg
+!web_gui/static/*.jpeg
+!web_gui/static/*.jpg
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+
+# Data files (large pickle files - uncomment if you don't want to upload data)
+# *.pickle
+# data/
+
+# Model files (large tar files - uncomment if you don't want to upload models)
+# *.tar
+# models/
+
+# Output files
+output/
+3D_vis/*/
+!3D_vis/*.py
+chest/
+foot/
+head/
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# TIGRE build files
+TIGRE/build/
+TIGRE-2.3/build/
+*.pyd
+*.exp
+
+# Large version files
+1.16.5
+
