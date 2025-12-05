@@ -18,6 +18,8 @@ This document provides a detailed explanation of the entire CT-Former system pip
 
 ### 1.0 Stage 0: Raw Input (Original CT Scan Data)
 
+**Script**: None (raw data input)
+
 **What it is:**
 - Original 3D CT scan volume directly from medical scanner
 - **Format**: Binary `.raw` files (e.g., `vis_male_128x256x256_uint8.raw`, `statue_leg_341x341x93_uint8.raw`)
@@ -75,9 +77,12 @@ scipy.io.savemat('raw_data/head/img.mat', {'img': img_data})
 
 ### 1.2 Stage 2: Main Data Generation Pipeline
 
-**Script Execution**: `dataGenerator/generateData_{category}.py`
+**Script Execution**: `dataGenerator/generateData_{category}.py` or `dataGenerator/generateData.py`
+- For head: `dataGenerator/generateData_head.py`
+- For PNG X-ray images: `dataGenerator/generateData_from_png.py`
 
 #### Step 2.1: Load Configuration
+**Script Location**: `dataGenerator/generateData_{category}.py` (lines 26-49, 163-177)
 **File**: `dataGenerator/raw_data/{category}/config.yml`
 - Defines CT scanner geometry parameters:
   - `DSD`: Distance Source to Detector (mm)
@@ -98,7 +103,9 @@ scipy.io.savemat('raw_data/head/img.mat', {'img': img_data})
   - `randomAngle`: Whether to use random or uniform angle distribution
 
 #### Step 2.2: Load and Convert CT Image
+**Script Location**: `dataGenerator/generateData_{category}.py` (lines 118-160)
 **Function**: `loadImage(dirname, nVoxels, convert, rescale_slope, rescale_intercept, normalize=True)`
+**Helper Function**: `convert_to_attenuation()` (lines 89-115)
 
 **Process**:
 1. **Load `.mat` file**:
@@ -159,7 +166,9 @@ scipy.io.savemat('raw_data/head/img.mat', {'img': img_data})
 **Output**: Normalized 3D volume `[256, 256, 128]` with values in [0, 1] range
 
 #### Step 2.3: Generate X-ray Projections (Forward Projection)
+**Script Location**: `dataGenerator/generateData_{category}.py` (lines 183-205)
 **Function**: `tigre.Ax()` (TIGRE library forward projection)
+**Geometry Class**: `ConeGeometry_special` (lines 52-82)
 
 **Input**: 
 - CT volume: `[256, 256, 128]` (attenuation coefficients μ)
@@ -204,13 +213,15 @@ scipy.io.savemat('raw_data/head/img.mat', {'img': img_data})
 - Validation data: test reconstruction quality on unseen angles
 
 #### Step 2.4: Add Noise (Optional)
-**Function**: `CTnoise.add()`
+**Script Location**: `dataGenerator/generateData_{category}.py` (lines 189-194, 200-205)
+**Function**: `CTnoise.add()` (from TIGRE library)
 - **Poisson Noise**: Simulates photon counting statistics (`Poisson=1e5`)
 - **Gaussian Noise**: Simulates electronic noise (`Gaussian=[0, noise_level]`)
 - **Purpose**: Makes projections more realistic (real X-ray images have noise)
 - **When Applied**: Only if `noise > 0` in config and `normalize=True`
 
 #### Step 2.5: Save Pickle File
+**Script Location**: `dataGenerator/generateData_{category}.py` (lines 246-251)
 **Output**: `data/{category}_50.pickle`
 
 **Structure**:
@@ -318,7 +329,10 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 2.1 Entry Point: `train.py`
 
+**Script**: `train.py`
+
 #### Step 2.1: Configuration Loading
+**Script Location**: `train.py`
 **Function**: `load_config(args.config)`
 - **Config File**: `config/{method}/{category}_50.yaml`
   - Methods: `Lineformer`, `tensorf`, `nerf`
@@ -334,6 +348,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - `render.netchunk`: Chunk size for network inference (default: 409600)
 
 #### Step 2.2: Dataset Initialization
+**Script Location**: `src/dataset/tigre.py`
 **Class**: `TIGREDataset` (from `src/dataset/tigre.py`)
 - **Loading**:
   - Opens `.pickle` file
@@ -358,9 +373,10 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - Returns: `{"rays": [1024, 8], "projs": [1024]}`
 
 #### Step 2.3: Network Initialization
+**Script Location**: `train.py`
 **Function**: `get_network()` → `Lineformer` or `DensityNetwork`
 - **Encoder** (`get_encoder()`):
-  - **Hash Grid Encoder** (`hashgrid_pytorch.py`):
+  - **Hash Grid Encoder** (`src/encoder/hashgrid_pytorch.py`):
     - Multi-resolution hash tables (16 levels)
     - Input: 3D coordinates `[N, 3]`
     - Output: Feature vectors `[N, 32]`
@@ -368,6 +384,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - **Freq Encoder**: Fourier feature encoding
 - **Network Architecture**:
   - **Lineformer** (`src/network/Lineformer.py`):
+    **Script Location**: `src/network/Lineformer.py`
     - Input: `[N_rays * N_samples, 3]` (3D coordinates)
     - Encoder: `[N_rays * N_samples, 32]`
     - Line-segment Transformer:
@@ -383,7 +400,9 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
     - Output: Attenuation coefficients
 
 #### Step 2.4: Training Loop
+**Script Location**: `train.py`
 **Class**: `BasicTrainer` (inherits from `Trainer`)
+**Render Function**: `src/render/` (volume rendering functions)
 
 **Per Epoch**:
 1. **Data Loading**:
@@ -434,16 +453,21 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 3.1 Entry Point: `test.py`
 
+**Script**: `test.py`
+
 #### Step 3.1: Load Model
+**Script Location**: `test.py`
 - Loads checkpoint: `models/{category}.tar`
 - Initializes network with same architecture as training
 - Loads weights: `model.load_state_dict(ckpt["network"])`
 
 #### Step 3.2: Load Validation Dataset
-- Same as training: `TIGREDataset(path, type="val")`
+**Script Location**: `test.py`
+- Same as training: `TIGREDataset(path, type="val")` (from `src/dataset/tigre.py`)
 - Loads validation projections and angles
 
 #### Step 3.3: Inference (`eval_step()`)
+**Script Location**: `test.py`
 
 **3.3.1 Projection Rendering**:
 - For each validation projection (50 total):
@@ -462,14 +486,17 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 - **Output**: Reconstructed CT volume `[256, 256, 128]`
 
 #### Step 3.4: Metric Calculation
+**Script Location**: `test.py`
+**Metric Functions**: `src/utils/util.py`
 - **Projection Metrics**:
-  - `proj_psnr = get_psnr(projs_pred, projs_gt)`
-  - `proj_ssim = get_ssim(projs_pred, projs_gt)`
+  - `proj_psnr = get_psnr(projs_pred, projs_gt)` (from `src/utils/util.py`)
+  - `proj_ssim = get_ssim(projs_pred, projs_gt)` (from `src/utils/util.py`)
 - **3D Volume Metrics**:
-  - `psnr_3d = get_psnr_3d(image_pred, image_gt)`
-  - `ssim_3d = get_ssim_3d(image_pred, image_gt)`
+  - `psnr_3d = get_psnr_3d(image_pred, image_gt)` (from `src/utils/util.py`)
+  - `ssim_3d = get_ssim_3d(image_pred, image_gt)` (from `src/utils/util.py`)
 
 #### Step 3.5: Save Results
+**Script Location**: `test.py`
 **Output Directory**: `output/{method}/{category}/`
 - **Projections**:
   - `proj_pred/`: Predicted projections `[50, 256, 256]` → PNG files
@@ -485,11 +512,15 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 4.1 Static 3D Visualization: `3D_vis/3D_vis_{category}.py`
 
+**Script**: `3D_vis/3D_vis_{category}.py` (e.g., `3D_vis/3D_vis_chest.py`, `3D_vis/3D_vis_head.py`)
+
 #### Step 4.1: Load Reconstructed Volume
+**Script Location**: `3D_vis/3D_vis_{category}.py`
 - Loads from `output/{method}/{category}/CT/` or directly from model inference
 - Volume shape: `[256, 256, 128]`
 
 #### Step 4.2: Volume Rendering
+**Script Location**: `3D_vis/3D_vis_{category}.py`
 - **Marching Cubes** (`skimage.measure.marching_cubes`):
   - Input: Volume `[256, 256, 128]`, threshold (e.g., 0.55)
   - Output: Mesh vertices and faces
@@ -500,10 +531,14 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 4.2 Dynamic GIF Visualization: `3D_vis/3D_vis_{category}_gif.py`
 
+**Script**: `3D_vis/3D_vis_{category}_gif.py` (e.g., `3D_vis/3D_vis_chest_gif.py`, `3D_vis/3D_vis_head_gif.py`)
+
 #### Step 4.1: Load Volume
+**Script Location**: `3D_vis/3D_vis_{category}_gif.py`
 - Same as static visualization
 
 #### Step 4.2: Generate Frames
+**Script Location**: `3D_vis/3D_vis_{category}_gif.py`
 - **Loop** over rotation angles (e.g., 0° to 360° in 120 steps):
   - For each angle:
     - Applies rotation to mesh
@@ -512,6 +547,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - Progress: `tqdm` shows `i/120 [time<remaining]`
 
 #### Step 4.3: Create GIF
+**Script Location**: `3D_vis/3D_vis_{category}_gif.py`
 - **Function**: `imageio.mimsave()`
 - Combines frames: `angle_*.png` → `{category}_animation.gif`
 - Parameters: Duration per frame, loop count
@@ -522,6 +558,8 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 ## 5. Metric Calculation
 
 ### 5.1 PSNR (Peak Signal-to-Noise Ratio)
+
+**Script Location**: `src/utils/util.py`
 
 #### 2D PSNR: `get_psnr(x, y)`
 **File**: `src/utils/util.py`
@@ -534,6 +572,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 - **Usage**: Projection quality assessment
 
 #### 3D PSNR: `get_psnr_3d(arr1, arr2)`
+**File**: `src/utils/util.py`
 - **Input**: 3D volumes `[H, W, L]`
 - **Process**:
   1. Compute MSE across all voxels: `mse = mean((arr1 - arr2)^2)`
@@ -543,7 +582,10 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 5.2 SSIM (Structural Similarity Index)
 
+**Script Location**: `src/utils/util.py`
+
 #### 2D SSIM: `get_ssim(img1, img2)`
+**File**: `src/utils/util.py`
 - **Input**: Two images `[H, W]` or `[B, H, W]`
 - **Process**:
   1. Convert to uint8: `[0, 1]` → `[0, 255]`
@@ -557,6 +599,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 - **Output**: Scalar SSIM value [0, 1] (higher is better)
 
 #### 3D SSIM: `get_ssim_3d(arr1, arr2)`
+**File**: `src/utils/util.py`
 - **Input**: 3D volumes `[H, W, L]`
 - **Process**:
   1. Computes SSIM along each axis:
@@ -572,9 +615,11 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### 6.1 Training with MLG: `train_mlg.py`
 
+**Script**: `train_mlg.py`
 **Dataset**: `TIGREDataset_MLG` (from `src/dataset/tigre_mlg.py`)
 
 #### Step 6.1: Window Partitioning
+**Script Location**: `src/dataset/tigre_mlg.py`
 - **Input**: Projection `[256, 256]`, Rays `[256, 256, 8]`
 - **Window Size**: `[32, 32]` (configurable)
 - **Partitioning**:
@@ -582,6 +627,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - Rays: `[256, 256, 8]` → `[64, 32, 32, 8]`
 
 #### Step 6.2: Window Selection
+**Script Location**: `src/dataset/tigre_mlg.py`
 - **Valid Windows**: Windows where all pixels have projection > 0
 - **Local Sampling**: Randomly selects `window_num` windows (default: 4)
   - Takes ALL pixels from selected windows: `4 * 32 * 32 = 4096` rays
@@ -590,6 +636,7 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
   - Randomly samples `n_rays` rays (default: 1024)
 
 #### Step 6.3: Combine Samples
+**Script Location**: `src/dataset/tigre_mlg.py`
 - Concatenates: `[4096 + 1024, 8]` rays, `[4096 + 1024]` projections
 - **Efficiency**: ~40% reduction in total samples vs. uniform sampling
 - **Benefit**: Focuses computation on informative regions
@@ -600,9 +647,9 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### Training Flow:
 ```
-1. Raw CT (.mat) → generateData_{category}.py
-2. Generate projections → {category}_50.pickle
-3. train.py → Load config → Initialize dataset
+1. Raw CT (.mat) → dataGenerator/generateData_{category}.py
+2. Generate projections → data/{category}_50.pickle
+3. train.py → Load config → Initialize dataset (src/dataset/tigre.py)
 4. For each epoch:
    a. Sample rays (uniform or MLG)
    b. Render projections (NeRF forward)
@@ -615,18 +662,18 @@ This preprocessing pipeline converts raw CT scans into a format suitable for tra
 
 ### Inference Flow:
 ```
-1. test.py → Load model → Load validation data
-2. Render all projections → [50, 256, 256]
-3. Reconstruct 3D volume → [256, 256, 128]
-4. Compute metrics (PSNR, SSIM)
+1. test.py → Load model → Load validation data (src/dataset/tigre.py)
+2. Render all projections → [50, 256, 256] (src/render/)
+3. Reconstruct 3D volume → [256, 256, 128] (src/network/Lineformer.py)
+4. Compute metrics (PSNR, SSIM) (src/utils/util.py)
 5. Save results → output/{method}/{category}/
 ```
 
 ### Visualization Flow:
 ```
-1. Load reconstructed volume [256, 256, 128]
-2. Static: marching_cubes → 3D mesh → PNG
-3. Dynamic: Rotate mesh → 120 frames → GIF
+1. Load reconstructed volume [256, 256, 128] (from output/{method}/{category}/CT/)
+2. Static: 3D_vis/3D_vis_{category}.py → marching_cubes → 3D mesh → PNG
+3. Dynamic: 3D_vis/3D_vis_{category}_gif.py → Rotate mesh → 120 frames → GIF
 4. Save → 3D_vis/{category}/
 ```
 
@@ -672,12 +719,35 @@ I = ∫[near, far] exp(-∫[near, t] μ(s) ds) * μ(t) dt
 
 ---
 
-## 10. File Organization
+## 10. Web GUI Interface
+
+### 10.1 Web GUI Entry Point
+**Script**: `web_gui/app.py`
+- **Frontend**: `web_gui/templates/index.html`, `web_gui/static/style.css`, `web_gui/static/script.js`
+- **Backend API**: Flask server in `web_gui/app.py`
+- **Features**:
+  - Category selection and output type filtering
+  - Real-time progress monitoring for GIF generation
+  - Output file viewing and folder navigation
+  - System information display (CPU, Memory, GPU, Storage)
+
+### 10.2 GUI Operations
+**Script Location**: `web_gui/app.py`
+- **Static Reconstruction**: Calls `3D_vis/3D_vis_{category}.py` (lines 380-430)
+- **Dynamic Reconstruction**: Calls `3D_vis/3D_vis_{category}_gif.py` (lines 454-504)
+- **Output File Listing**: `get_output_files()` function (lines 692-750)
+- **Real-time Progress**: `run_subprocess_with_realtime_output()` function (lines 520-580)
+
+---
+
+## 11. File Organization
 
 ```
 project/
 ├── dataGenerator/
-│   ├── generateData_{category}.py    # Data preprocessing
+│   ├── generateData_{category}.py    # Data preprocessing (main pipeline)
+│   ├── generateData_from_png.py      # PNG X-ray to pickle conversion
+│   ├── data_vis_{category}.py        # Raw to .mat conversion
 │   └── raw_data/{category}/          # Raw CT data
 ├── data/
 │   └── {category}_50.pickle          # Processed data
@@ -686,19 +756,29 @@ project/
 ├── train.py                          # Training script
 ├── train_mlg.py                      # Training with MLG
 ├── test.py                           # Inference script
+├── web_gui/
+│   ├── app.py                        # Flask backend server
+│   ├── templates/index.html          # Frontend HTML
+│   └── static/                       # CSS and JavaScript
 ├── src/
 │   ├── dataset/                      # Data loading
+│   │   ├── tigre.py                  # TIGREDataset class
+│   │   └── tigre_mlg.py              # TIGREDataset_MLG class
 │   ├── encoder/                      # Position encoding
+│   │   └── hashgrid_pytorch.py      # Hash grid encoder
 │   ├── network/                      # Network architectures
+│   │   └── Lineformer.py             # Line-segment Transformer
 │   ├── render/                       # Volume rendering
 │   ├── loss/                         # Loss functions
 │   └── utils/                        # Metrics, utilities
+│       └── util.py                   # PSNR, SSIM functions
 ├── models/
 │   └── {category}.tar                # Trained models
 ├── output/
 │   └── {method}/{category}/           # Inference results
 └── 3D_vis/
-    └── {category}/                   # Visualizations
+    ├── 3D_vis_{category}.py          # Static visualization
+    └── 3D_vis_{category}_gif.py      # Dynamic GIF visualization
 ```
 
 ---
